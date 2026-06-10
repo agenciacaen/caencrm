@@ -1,0 +1,5 @@
+{
+  "name": "CaenCRM",
+  "description": "A high-fidelity CRM dashboard interface for CaenCRM, featuring real-time metrics, sales performance tracking, and AI integration views.",
+  "requestFramePermissions": []
+}

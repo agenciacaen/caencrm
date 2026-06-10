@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CaenCRM | Inteligência em CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/index.css">
+  <script>
+    window.addEventListener('error', function(e) {
+      var root = document.getElementById('root');
+      if (root) root.innerHTML = 
+        '<div style="padding:40px;background:#111;color:#fff;font-family:sans-serif;min-height:100vh">' +
+        '<h1 style="color:#fbbf24;font-size:18px;margin-bottom:16px">Erro na aplicação</h1>' +
+        '<pre style="background:#1a1a1a;padding:20px;border-radius:8px;overflow:auto;font-size:12px;line-height:1.5;color:#e2e8f0">' +
+        (e.error ? (e.error.stack || e.error.message || String(e.error)) : String(e.message)) +
+        '</pre></div>';
+      console.error('[global error]', e.error || e.message);
+      e.preventDefault();
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var root = document.getElementById('root');
+      if (root) root.innerHTML = 
+        '<div style="padding:40px;background:#111;color:#fff;font-family:sans-serif;min-height:100vh">' +
+        '<h1 style="color:#fbbf24;font-size:18px;margin-bottom:16px">Erro na Promise</h1>' +
+        '<pre style="background:#1a1a1a;padding:20px;border-radius:8px;overflow:auto;font-size:12px;line-height:1.5;color:#e2e8f0">' +
+        (e.reason ? (e.reason.stack || e.reason.message || String(e.reason)) : 'Unknown error') +
+        '</pre></div>';
+      console.error('[unhandled rejection]', e.reason);
+      e.preventDefault();
+    });
+  </script>
+</head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
