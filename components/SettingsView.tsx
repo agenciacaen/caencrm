@@ -408,7 +408,11 @@ function SettingsView() {
   };
 
   const renderAccount = () => {
-    const activeAccounts = authAccounts.filter(a => a.status === 'Active');
+    const activeAccounts = authAccounts.length > 0
+      ? authAccounts.filter(a => (a.status || '').toLowerCase() === 'active')
+      : (selectedAccount ? [selectedAccount] : []);
+
+    const displayAccounts = activeAccounts.length > 0 ? activeAccounts : authAccounts;
 
     return (
       <div className="space-y-6">
@@ -422,7 +426,7 @@ function SettingsView() {
           </div>
 
           <div className="space-y-3">
-            {activeAccounts.map(account => {
+            {displayAccounts.map(account => {
               const isActive = selectedAccount?.id === account.id;
               return (
                 <button
@@ -455,8 +459,8 @@ function SettingsView() {
               );
             })}
 
-            {activeAccounts.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-4 font-semibold">Nenhuma conta ativa disponível</p>
+            {displayAccounts.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4 font-semibold">Nenhuma conta disponível</p>
             )}
           </div>
 
