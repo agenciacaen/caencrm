@@ -210,7 +210,7 @@ export interface CompanyFilters extends PaginationParams {
 export interface ChatwootUserAccount {
   id: number;
   name: string;
-  status: 'Active' | 'Inactive';
+  status: 'active' | 'inactive';
   locale: string;
 }
 

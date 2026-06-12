@@ -8,7 +8,7 @@ export default function AccountSelector() {
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
 
-  const activeAccounts = accounts.filter(a => a.status === 'Active');
+  const activeAccounts = accounts.filter(a => a.status === 'active');
 
   const handleSelect = async (account: typeof activeAccounts[0]) => {
     setLoading(true);

@@ -61,7 +61,7 @@ describe('AuthContext', () => {
         avatar_url: '',
         type: 'standard',
         accounts: [
-          { id: 1, name: 'Main Account', status: 'Active', locale: 'pt_BR' },
+          { id: 1, name: 'Main Account', status: 'active', locale: 'pt_BR' },
         ],
         pubsub_token: 'pubsub-123',
       },
@@ -94,8 +94,8 @@ describe('AuthContext', () => {
         avatar_url: '',
         type: 'standard',
         accounts: [
-          { id: 1, name: 'Account 1', status: 'Active', locale: 'pt_BR' },
-          { id: 2, name: 'Account 2', status: 'Active', locale: 'en' },
+          { id: 1, name: 'Account 1', status: 'active', locale: 'pt_BR' },
+          { id: 2, name: 'Account 2', status: 'active', locale: 'en' },
         ],
       },
       token: 'token-xyz',
@@ -120,8 +120,8 @@ describe('AuthContext', () => {
   });
 
   it('should handle logout', async () => {
-    localStorage.setItem('caen_crm_auth', JSON.stringify({ user: { id: 1, name: 'Test', email: 'test@test.com', accounts: [{ id: 1, name: 'Main', status: 'Active', locale: 'pt_BR' }] }, token: 'tok' }));
-    localStorage.setItem('caen_crm_account', JSON.stringify({ id: 1, name: 'Main', status: 'Active', locale: 'pt_BR' }));
+    localStorage.setItem('caen_crm_auth', JSON.stringify({ user: { id: 1, name: 'Test', email: 'test@test.com', accounts: [{ id: 1, name: 'Main', status: 'active', locale: 'pt_BR' }] }, token: 'tok' }));
+    localStorage.setItem('caen_crm_account', JSON.stringify({ id: 1, name: 'Main', status: 'active', locale: 'pt_BR' }));
 
     renderWithProvider();
 
