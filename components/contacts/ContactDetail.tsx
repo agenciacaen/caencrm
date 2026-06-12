@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, ArrowLeft, MessageSquare, Briefcase, Loader2, CornerUpLeft, Building2, Plus, Search, X, Check } from 'lucide-react';
-import { getConversations, addContactToCompany } from '../../api/chatwoot';
+import { getConversations, getAccountId, addContactToCompany } from '../../api/chatwoot';
 import { supabase } from '../../api/supabase';
 import type { ChatwootContact, ChatwootConversation, ChatwootCompany } from '../../types/chatwoot';
 import { useDeals } from '../../hooks/useDeals';
@@ -34,7 +34,8 @@ export default function ContactDetail() {
     setError(null);
     (async () => {
       const isNumericId = /^\d+$/.test(id);
-      const query = supabase.from('contacts').select('*');
+      const accountId = getAccountId();
+      const query = supabase.from('contacts').select('*').eq('account_id', accountId);
       const { data, error: err } = isNumericId
         ? await query.eq('chatwoot_id', Number(id)).single()
         : await query.eq('id', id).single();
@@ -60,7 +61,7 @@ export default function ContactDetail() {
         if (d.company_id) {
           setCompanyLoading(true);
           try {
-            const { data: compData } = await supabase.from('companies').select('*').eq('chatwoot_id', d.company_id).single();
+            const { data: compData } = await supabase.from('companies').select('*').eq('chatwoot_id', d.company_id).eq('account_id', getAccountId()).single();
               if (compData) {
                 const cd = compData as any;
                 setLinkedCompany({
@@ -99,7 +100,7 @@ export default function ContactDetail() {
     if (!isCompanyModalOpen) { setCompanyResults([]); setCompanySearch(''); return; }
     setCompanySearchLoading(true);
     (async () => {
-      const { data, error: err } = await supabase.from('companies').select('*').order('name').limit(50);
+      const { data, error: err } = await supabase.from('companies').select('*').eq('account_id', getAccountId()).order('name').limit(50);
       if (err) throw err;
         const list = (data || []).map((c: any) => ({
           id: c.chatwoot_id ?? -1,
@@ -130,7 +131,8 @@ export default function ContactDetail() {
       const { error: updateErr } = await supabase
         .from('contacts')
         .update({ company_id: companyChatwootId })
-        .eq('id', (contact as any).supabase_id || id);
+        .eq('id', (contact as any).supabase_id || id)
+        .eq('account_id', getAccountId());
       if (updateErr) throw updateErr;
       try {
         if (contact.id > 0) await addContactToCompany(companyChatwootId, contact.id);
@@ -146,7 +148,8 @@ export default function ContactDetail() {
       const { error: updateErr } = await supabase
         .from('contacts')
         .update({ company_id: null })
-        .eq('id', (contact as any).supabase_id || id);
+        .eq('id', (contact as any).supabase_id || id)
+        .eq('account_id', getAccountId());
       if (updateErr) throw updateErr;
       setLinkedCompany(null);
     } catch (e) { console.error(e); }

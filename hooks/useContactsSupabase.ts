@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../api/supabase';
+import { getAccountId } from '../api/chatwoot';
 import { syncContactsFromChatwoot } from '../api/sync';
 import type { ChatwootContact } from '../types/chatwoot';
 
@@ -16,6 +17,7 @@ interface SupabaseContact {
   phone: string | null;
   avatar: string | null;
   company_id: number | null;
+  account_id: string;
   additional_attributes: Record<string, unknown>;
   custom_attributes: Record<string, unknown>;
   created_at: string;
@@ -63,9 +65,11 @@ export function useContactsSupabase(): UseContactsReturn {
     setLoading(true);
     setError(null);
     try {
+      const accountId = getAccountId();
       const { data, error: err } = await supabase
         .from('contacts')
         .select('*')
+        .eq('account_id', accountId)
         .order('name');
       if (err) throw err;
       setContacts((data as SupabaseContact[] || []).map(mapToContact));
@@ -79,14 +83,16 @@ export function useContactsSupabase(): UseContactsReturn {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const search = useCallback(async (query: string): Promise<CRMContact[]> => {
+    const accountId = getAccountId();
     if (!query.trim()) {
-      const { data, error: err } = await supabase.from('contacts').select('*').order('name').limit(50);
+      const { data, error: err } = await supabase.from('contacts').select('*').eq('account_id', accountId).order('name').limit(50);
       if (err) throw err;
       return (data as SupabaseContact[] || []).map(mapToContact);
     }
     const { data, error: err } = await supabase
       .from('contacts')
       .select('*')
+      .eq('account_id', accountId)
       .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
       .order('name')
       .limit(50);

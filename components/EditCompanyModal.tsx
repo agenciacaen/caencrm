@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Building2, Globe, Phone, FileText, Trash2, AlertTriangle, AlertCircle, Save } from 'lucide-react';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 import type { ChatwootCompany } from '../types/chatwoot';
 import type { CRMCompany } from '../hooks/useCompaniesSupabase';
 
@@ -54,12 +54,13 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
       const supabaseId = (company as CRMCompany).supabase_id;
       const chatwootId = (company as CRMCompany).chatwoot_id ?? (company.id > 0 ? company.id : null);
 
+      const accountId = getAccountId();
       const update = supabase.from('companies').update({
         name: name.trim(),
         website: website.trim() || null,
         phone_number: phoneNumber.trim() || null,
         description: description.trim() || null,
-      });
+      }).eq('account_id', accountId);
       const { error: updateErr } = supabaseId
         ? await update.eq('id', supabaseId)
         : await update.eq('chatwoot_id', company.id);
@@ -95,7 +96,7 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     try {
       const supabaseId = (company as CRMCompany).supabase_id;
       const chatwootId = (company as CRMCompany).chatwoot_id ?? (company.id > 0 ? company.id : null);
-      const deletion = supabase.from('companies').delete();
+      const deletion = supabase.from('companies').delete().eq('account_id', getAccountId());
       const { error: deleteErr } = supabaseId
         ? await deletion.eq('id', supabaseId)
         : await deletion.eq('chatwoot_id', company.id);

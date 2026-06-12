@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, User, Mail, Phone, Trash2, AlertTriangle, AlertCircle, Save } from 'lucide-react';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 import type { ChatwootContact } from '../types/chatwoot';
 import type { CRMContact } from '../hooks/useContactsSupabase';
 
@@ -52,11 +52,12 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
       const supabaseId = (contact as CRMContact).supabase_id;
       const chatwootId = (contact as CRMContact).chatwoot_id ?? (contact.id > 0 ? contact.id : null);
 
+      const accountId = getAccountId();
       const update = supabase.from('contacts').update({
         name: name.trim(),
         email: email.trim() || null,
         phone: phoneNumber.trim() || null,
-      });
+      }).eq('account_id', accountId);
       const { error: updateErr } = supabaseId
         ? await update.eq('id', supabaseId)
         : await update.eq('chatwoot_id', contact.id);
@@ -91,7 +92,7 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
     try {
       const supabaseId = (contact as CRMContact).supabase_id;
       const chatwootId = (contact as CRMContact).chatwoot_id ?? (contact.id > 0 ? contact.id : null);
-      const deletion = supabase.from('contacts').delete();
+      const deletion = supabase.from('contacts').delete().eq('account_id', getAccountId());
       const { error: deleteErr } = supabaseId
         ? await deletion.eq('id', supabaseId)
         : await deletion.eq('chatwoot_id', contact.id);

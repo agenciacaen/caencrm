@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Building2, ArrowLeft, Users, Briefcase, Loader2, Mail, Phone as PhoneIcon } from 'lucide-react';
 import { supabase } from '../../api/supabase';
+import { getAccountId } from '../../api/chatwoot';
 import type { ChatwootCompany, ChatwootContact } from '../../types/chatwoot';
 import { useDeals } from '../../hooks/useDeals';
 import EmptyState from '../ui/EmptyState';
@@ -25,7 +26,8 @@ export default function CompanyDetail() {
     setError(null);
     (async () => {
       const isNumericId = /^\d+$/.test(id);
-      const query = supabase.from('companies').select('*');
+      const accountId = getAccountId();
+      const query = supabase.from('companies').select('*').eq('account_id', accountId);
       const { data, error: err } = isNumericId
         ? await query.eq('chatwoot_id', Number(id)).single()
         : await query.eq('id', id).single();
@@ -53,7 +55,7 @@ export default function CompanyDetail() {
     (async () => {
       const companyChatwootId = (company as any).chatwoot_id ?? (company.id > 0 ? company.id : null);
       if (!companyChatwootId) { setContacts([]); return; }
-      const { data, error: err } = await supabase.from('contacts').select('*').eq('company_id', companyChatwootId).order('name');
+      const { data, error: err } = await supabase.from('contacts').select('*').eq('company_id', companyChatwootId).eq('account_id', getAccountId()).order('name');
       if (err) throw err;
         setContacts((data || []).map((c: any) => ({
           id: c.chatwoot_id ?? -1,

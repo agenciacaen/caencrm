@@ -114,9 +114,10 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
       setNotes(editingDeal.notes || '');
       if (editingDeal.companyId) {
         (async () => {
-          const { data } = await supabase.from('companies').select('*').eq('chatwoot_id', editingDeal.companyId).maybeSingle();
+          const accountId = getAccountId();
+          const { data } = await supabase.from('companies').select('*').eq('chatwoot_id', editingDeal.companyId).eq('account_id', accountId).maybeSingle();
           if (data) { setSelectedCompany(mapCompany(data)); } else {
-            const byFallback = await supabase.from('companies').select('*').order('created_at');
+            const byFallback = await supabase.from('companies').select('*').eq('account_id', accountId).order('created_at');
             if (byFallback.data) {
               const match = byFallback.data.find((c: any) => (c.chatwoot_id ?? fallbackId(c.id)) === editingDeal.companyId);
               if (match) setSelectedCompany(mapCompany(match));
@@ -126,9 +127,10 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
       }
       if (editingDeal.contactId) {
         (async () => {
-          const { data } = await supabase.from('contacts').select('*').eq('chatwoot_id', editingDeal.contactId).maybeSingle();
+          const accountId = getAccountId();
+          const { data } = await supabase.from('contacts').select('*').eq('chatwoot_id', editingDeal.contactId).eq('account_id', accountId).maybeSingle();
           if (data) { setSelectedContact(mapContact(data)); } else {
-            const byFallback = await supabase.from('contacts').select('*').order('created_at');
+            const byFallback = await supabase.from('contacts').select('*').eq('account_id', accountId).order('created_at');
             if (byFallback.data) {
               const match = byFallback.data.find((c: any) => (c.chatwoot_id ?? fallbackId(c.id)) === editingDeal.contactId);
               if (match) setSelectedContact(mapContact(match));
@@ -141,13 +143,15 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
 
     if (preselectedCompanyId) {
       (async () => {
-        const { data } = await supabase.from('companies').select('*').eq('chatwoot_id', preselectedCompanyId).single();
+        const accountId = getAccountId();
+        const { data } = await supabase.from('companies').select('*').eq('chatwoot_id', preselectedCompanyId).eq('account_id', accountId).single();
         if (data) { setSelectedCompany(mapCompany(data)); }
       })().catch(() => {});
     }
     if (preselectedContactId) {
       (async () => {
-        const { data } = await supabase.from('contacts').select('*').eq('chatwoot_id', preselectedContactId).single();
+        const accountId = getAccountId();
+        const { data } = await supabase.from('contacts').select('*').eq('chatwoot_id', preselectedContactId).eq('account_id', accountId).single();
         if (data) setSelectedContact(mapContact(data));
       })().catch(() => {});
     }
@@ -158,11 +162,12 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
     const load = async () => {
       setCompanySearchLoading(true);
       try {
+        const accountId = getAccountId();
         if (!companySearch.trim()) {
-          const { data } = await supabase.from('companies').select('*').order('name').limit(50);
+          const { data } = await supabase.from('companies').select('*').eq('account_id', accountId).order('name').limit(50);
           setCompanyResults((data || []).map(mapCompany));
         } else {
-          const { data } = await supabase.from('companies').select('*').ilike('name', `%${companySearch}%`).order('name').limit(50);
+          const { data } = await supabase.from('companies').select('*').eq('account_id', accountId).ilike('name', `%${companySearch}%`).order('name').limit(50);
           setCompanyResults((data || []).map(mapCompany));
         }
       } catch { setCompanyResults([]); }
@@ -176,7 +181,8 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
     const load = async () => {
       setContactSearchLoading(true);
       try {
-        let query = supabase.from('contacts').select('*');
+        const accountId = getAccountId();
+        let query = supabase.from('contacts').select('*').eq('account_id', accountId);
         if (contactSearch.trim()) query = query.ilike('name', `%${contactSearch}%`);
         const { data } = await query.order('name').limit(50);
         setContactResults((data || []).map(mapContact));
@@ -236,6 +242,7 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
     try {
       const { data: inserted, error: insertErr } = await supabase.from('companies').insert({
         name,
+        account_id: getAccountId(),
       }).select().single();
       if (insertErr) throw insertErr;
       const mapped = mapCompany(inserted);
@@ -244,7 +251,7 @@ export default function DealForm({ isOpen, onClose, onSuccess, preselectedCompan
         if (cwCompany?.id) {
           (mapped as any).chatwoot_id = cwCompany.id;
           (mapped as any).id = cwCompany.id;
-          await supabase.from('companies').update({ chatwoot_id: cwCompany.id }).eq('id', (inserted as any).id);
+          await supabase.from('companies').update({ chatwoot_id: cwCompany.id }).eq('id', (inserted as any).id).eq('account_id', getAccountId());
         }
       } catch { /* Chatwoot sync optional */ }
       setSelectedCompany(mapped);

@@ -1,7 +1,8 @@
 import { supabase } from './supabase';
-import { getContacts, getCompanies } from './chatwoot';
+import { getAccountId, getContacts, getCompanies } from './chatwoot';
 
 export async function syncContactsFromChatwoot() {
+  const accountId = getAccountId();
   let page = 1;
   let hasMore = true;
   let total = 0;
@@ -17,6 +18,7 @@ export async function syncContactsFromChatwoot() {
         phone: c.phone_number || null,
         avatar: c.thumbnail || null,
         company_id: (c.custom_attributes?.company_id || c.additional_attributes?.company_id) as number | undefined || null,
+        account_id: accountId,
         additional_attributes: c.additional_attributes || {},
         custom_attributes: c.custom_attributes || {},
       };
@@ -49,6 +51,7 @@ export async function syncContactsFromChatwoot() {
 }
 
 export async function syncCompaniesFromChatwoot() {
+  const accountId = getAccountId();
   let page = 1;
   let hasMore = true;
   let total = 0;
@@ -64,6 +67,7 @@ export async function syncCompaniesFromChatwoot() {
         phone_number: c.phone_number || null,
         description: c.description || null,
         industry: c.industry || null,
+        account_id: accountId,
         additional_attributes: (c as any).additional_attributes || {},
         custom_attributes: (c as any).custom_attributes || {},
       };

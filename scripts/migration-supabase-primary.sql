@@ -25,6 +25,8 @@ COMMIT;
 
 -- 2b. Escopo por conta Chatwoot
 ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS account_id text NOT NULL DEFAULT '';
+ALTER TABLE public.contacts ADD COLUMN IF NOT EXISTS account_id text NOT NULL DEFAULT '';
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS account_id text NOT NULL DEFAULT '';
 
 -- 3. Criar índices para busca por email (dedup no sync)
 CREATE INDEX IF NOT EXISTS idx_contacts_email ON public.contacts (email) WHERE email IS NOT NULL;

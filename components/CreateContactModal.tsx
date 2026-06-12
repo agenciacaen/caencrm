@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, User, Mail, Phone, Plus, AlertCircle, Globe } from 'lucide-react';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 
 interface CreateContactModalProps {
   isOpen: boolean;
@@ -46,6 +46,7 @@ const CreateContactModal: React.FC<CreateContactModalProps> = ({
         name: name.trim(),
         email: email.trim() || null,
         phone: phoneNumber.trim() || null,
+        account_id: getAccountId(),
       }).select().single();
 
       if (insertErr) throw insertErr;

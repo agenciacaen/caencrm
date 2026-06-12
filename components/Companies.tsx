@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Building2, Search, Plus, Menu, Globe, Phone, Loader2, Edit3, Trash2 } from 'lucide-react';
 import { useCompaniesSupabase } from '../hooks/useCompaniesSupabase';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 import CreateCompanyModal from './CreateCompanyModal';
 import EditCompanyModal from './EditCompanyModal';
 import type { ChatwootCompany } from '../types/chatwoot';
@@ -60,7 +60,7 @@ const Companies: React.FC = () => {
     try {
       for (const id of selectedIds) {
         const company = companies.find(c => c.supabase_id === id);
-        const { error } = await supabase.from('companies').delete().eq('id', id);
+        const { error } = await supabase.from('companies').delete().eq('id', id).eq('account_id', getAccountId());
         if (error) throw error;
         if (company?.chatwoot_id) {
           try {

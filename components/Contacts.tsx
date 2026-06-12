@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, Search, Plus, Menu, FileDown, Mail, Phone, Loader2, Trash2, Edit3 } from 'lucide-react';
 import { useContactsSupabase } from '../hooks/useContactsSupabase';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 import EditContactModal from './EditContactModal';
 import CreateContactModal from './CreateContactModal';
 import EmptyState from './ui/EmptyState';
@@ -98,7 +98,7 @@ const Contacts: React.FC = () => {
     try {
       for (const id of selectedIds) {
         const contact = contacts.find(c => c.supabase_id === id);
-        const { error } = await supabase.from('contacts').delete().eq('id', id);
+        const { error } = await supabase.from('contacts').delete().eq('id', id).eq('account_id', getAccountId());
         if (error) throw error;
         if (contact?.chatwoot_id) {
           try {

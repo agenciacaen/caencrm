@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Building2, Globe, Phone, FileText, Plus, AlertCircle, User, CheckCircle2, Search, ArrowRight, Link2, Users } from 'lucide-react';
 import { supabase } from '../api/supabase';
-import chatwootAPI from '../api/chatwoot';
+import chatwootAPI, { getAccountId } from '../api/chatwoot';
 
 interface CreateCompanyModalProps {
   isOpen: boolean;
@@ -87,7 +87,8 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
     const load = async () => {
       setContactSearchLoading(true);
       try {
-        let query = supabase.from('contacts').select('id,name,email,phone,company_id,chatwoot_id');
+        const accountId = getAccountId();
+        let query = supabase.from('contacts').select('id,name,email,phone,company_id,chatwoot_id').eq('account_id', accountId);
         if (contactSearch.trim()) query = query.ilike('name', `%${contactSearch}%`);
         const { data } = await query.order('name').limit(50);
         setContactResults((data || []).map((c: any) => ({
@@ -119,6 +120,7 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         website: website.trim() || null,
         phone_number: phoneNumber.trim() || null,
         description: description.trim() || null,
+        account_id: getAccountId(),
       }).select().single();
 
       if (insertErr) throw insertErr;
@@ -137,7 +139,8 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
             const { error: updateErr } = await supabase
               .from('companies')
               .update({ chatwoot_id: company.id })
-              .eq('id', (inserted as any).id);
+              .eq('id', (inserted as any).id)
+              .eq('account_id', getAccountId());
             if (updateErr) throw updateErr;
           }
         } catch (cwErr: any) {
@@ -163,7 +166,8 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
       const { error: updateErr } = await supabase
         .from('contacts')
         .update({ company_id: companyNumericId })
-        .eq('id', selectedExistingContact.supabase_id);
+        .eq('id', selectedExistingContact.supabase_id)
+        .eq('account_id', getAccountId());
       if (updateErr) throw updateErr;
 
       if (selectedExistingContact.chatwoot_id && companyChatwootId) {
@@ -197,6 +201,7 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
         email: contactEmail.trim() || null,
         phone: contactPhone.trim() || null,
         company_id: companyNumericId,
+        account_id: getAccountId(),
       }).select('id').single();
       if (insertErr) throw insertErr;
 
@@ -213,7 +218,8 @@ const CreateCompanyModal: React.FC<CreateCompanyModalProps> = ({
             const { error: updateErr } = await supabase
               .from('contacts')
               .update({ chatwoot_id: contactId })
-              .eq('id', (inserted as any).id);
+              .eq('id', (inserted as any).id)
+              .eq('account_id', getAccountId());
             if (updateErr) throw updateErr;
             await chatwootAPI.companies.addContact(companyChatwootId, contactId);
           }

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../api/supabase';
+import { getAccountId } from '../api/chatwoot';
 import { syncCompaniesFromChatwoot } from '../api/sync';
 import type { ChatwootCompany } from '../types/chatwoot';
 
@@ -16,6 +17,7 @@ interface SupabaseCompany {
   phone_number: string | null;
   description: string | null;
   industry: string | null;
+  account_id: string;
   additional_attributes: Record<string, unknown>;
   custom_attributes: Record<string, unknown>;
   created_at: string;
@@ -62,9 +64,11 @@ export function useCompaniesSupabase(): UseCompaniesReturn {
     setLoading(true);
     setError(null);
     try {
+      const accountId = getAccountId();
       const { data, error: err } = await supabase
         .from('companies')
         .select('*')
+        .eq('account_id', accountId)
         .order('name');
       if (err) throw err;
       setCompanies((data as SupabaseCompany[] || []).map(mapToCompany));
@@ -78,14 +82,16 @@ export function useCompaniesSupabase(): UseCompaniesReturn {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const search = useCallback(async (query: string): Promise<CRMCompany[]> => {
+    const accountId = getAccountId();
     if (!query.trim()) {
-      const { data, error: err } = await supabase.from('companies').select('*').order('name').limit(50);
+      const { data, error: err } = await supabase.from('companies').select('*').eq('account_id', accountId).order('name').limit(50);
       if (err) throw err;
       return (data as SupabaseCompany[] || []).map(mapToCompany);
     }
     const { data, error: err } = await supabase
       .from('companies')
       .select('*')
+      .eq('account_id', accountId)
       .or(`name.ilike.%${query}%,website.ilike.%${query}%,phone_number.ilike.%${query}%,description.ilike.%${query}%`)
       .order('name')
       .limit(50);
