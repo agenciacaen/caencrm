@@ -222,13 +222,14 @@ export default function ConversationDetail({
           <LoadingState message="Carregando mensagens..." compact />
         ) : (
           sortedMessages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isIncoming={msg.message_type === 0}
-              isActivity={msg.message_type === 2}
-              isPrivate={msg.private}
-            />
+            <React.Fragment key={msg.id}>
+              <MessageBubble
+                message={msg}
+                isIncoming={msg.message_type === 0}
+                isActivity={msg.message_type === 2}
+                isPrivate={msg.private}
+              />
+            </React.Fragment>
           ))
         )}
       </div>

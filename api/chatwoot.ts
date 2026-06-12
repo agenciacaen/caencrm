@@ -31,10 +31,11 @@ const FALLBACK_ACCOUNT_ID = import.meta.env.VITE_CHATWOOT_ACCOUNT_ID || '1';
 const PROXY_PREFIX_V1 = '/chatwoot-api-v1';
 const PROXY_PREFIX_V2 = '/chatwoot-api-v2';
 const PROXY_PREFIX_AUTH = '/chatwoot-auth';
+const USE_PROXY = isDev || import.meta.env.VITE_CHATWOOT_USE_DIRECT !== 'true';
 
-const AUTH_PREFIX = isDev ? PROXY_PREFIX_AUTH : `${BASE_URL}/auth`;
-const API_PREFIX_V1 = isDev ? PROXY_PREFIX_V1 : `${BASE_URL}/api/v1`;
-const API_PREFIX_V2 = isDev ? PROXY_PREFIX_V2 : `${BASE_URL}/api/v2`;
+const AUTH_PREFIX = USE_PROXY ? PROXY_PREFIX_AUTH : `${BASE_URL}/auth`;
+const API_PREFIX_V1 = USE_PROXY ? PROXY_PREFIX_V1 : `${BASE_URL}/api/v1`;
+const API_PREFIX_V2 = USE_PROXY ? PROXY_PREFIX_V2 : `${BASE_URL}/api/v2`;
 
 // --- Helpers de sessão ---
 function getAuthToken(): string {
@@ -48,7 +49,7 @@ function getAuthToken(): string {
   return FALLBACK_TOKEN;
 }
 
-function getAccountId(): string {
+export function getAccountId(): string {
   try {
     const stored = localStorage.getItem('caen_crm_account');
     if (stored) {
@@ -93,7 +94,7 @@ async function chatwootFetch<T>(endpoint: string, options?: RequestInit, version
 // ============================================
 
 export async function getProfile(): Promise<{ pubsub_token?: string } & Record<string, any>> {
-  const base = isDev ? PROXY_PREFIX_V1 : `${BASE_URL}/api/v1`;
+  const base = USE_PROXY ? PROXY_PREFIX_V1 : `${BASE_URL}/api/v1`;
   const token = getAuthToken();
 
   const response = await fetch(`${base}/profile`, {
@@ -131,6 +132,7 @@ export async function loginUser(email: string, password: string): Promise<Chatwo
 export async function getContacts(filters?: ContactFilters): Promise<ContactsResponse> {
   const params = new URLSearchParams();
   if (filters?.page) params.set('page', String(filters.page));
+  if (filters?.per_page) params.set('per_page', String(filters.per_page));
   if (filters?.q) params.set('q', filters.q);
   if (filters?.sort) params.set('sort', filters.sort);
   if (filters?.order_by) params.set('order_by', filters.order_by);
@@ -150,10 +152,11 @@ export async function createContact(data: {
   identifier?: string;
   custom_attributes?: Record<string, unknown>;
 }): Promise<ChatwootContact> {
-  return chatwootFetch<ChatwootContact>('/contacts', {
+  const response = await chatwootFetch<any>('/contacts', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  return response?.payload?.contact || response?.payload || response;
 }
 
 export async function searchContacts(query: string): Promise<ContactsResponse> {
@@ -329,6 +332,7 @@ export async function getAccountSummary(params?: {
 export async function getCompanies(filters?: CompanyFilters): Promise<CompaniesResponse> {
   const params = new URLSearchParams();
   if (filters?.page) params.set('page', String(filters.page));
+  if (filters?.per_page) params.set('per_page', String(filters.per_page));
   if (filters?.q) params.set('q', filters.q);
 
   const query = params.toString() ? `?${params.toString()}` : '';
@@ -346,10 +350,11 @@ export async function createCompany(data: {
   phone_number?: string;
   custom_attributes?: Record<string, unknown>;
 }): Promise<ChatwootCompany> {
-  return chatwootFetch<ChatwootCompany>('/companies', {
+  const response = await chatwootFetch<any>('/companies', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  return response?.payload?.company || response?.payload || response;
 }
 
 export async function updateCompany(

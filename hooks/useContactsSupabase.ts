@@ -3,6 +3,11 @@ import { supabase } from '../api/supabase';
 import { syncContactsFromChatwoot } from '../api/sync';
 import type { ChatwootContact } from '../types/chatwoot';
 
+export type CRMContact = ChatwootContact & {
+  supabase_id: string;
+  chatwoot_id: number | null;
+};
+
 interface SupabaseContact {
   id: string;
   chatwoot_id: number | null;
@@ -17,31 +22,40 @@ interface SupabaseContact {
   updated_at: string;
 }
 
-function mapToChatwootContact(sc: SupabaseContact): ChatwootContact | null {
-  if (!sc.chatwoot_id) return null;
+function fallbackId(id: string): number {
+  const parsed = parseInt(id.replace(/\D/g, '').slice(0, 8), 10);
+  return Number.isFinite(parsed) ? -parsed : -1;
+}
+
+function mapToContact(sc: SupabaseContact): CRMContact {
   return {
-    id: sc.chatwoot_id,
+    id: sc.chatwoot_id ?? fallbackId(sc.id),
+    supabase_id: sc.id,
+    chatwoot_id: sc.chatwoot_id,
     name: sc.name,
-    email: sc.email || undefined,
-    phone_number: sc.phone || undefined,
-    thumbnail: sc.avatar || undefined,
+    email: sc.email || null,
+    phone_number: sc.phone || null,
+    thumbnail: sc.avatar || '',
     custom_attributes: { ...sc.custom_attributes, company_id: sc.company_id } as Record<string, unknown>,
     additional_attributes: sc.additional_attributes as { company_id?: number; social_profiles?: unknown },
-    availability_status: null,
+    identifier: null,
+    created_at: Math.floor(new Date(sc.created_at).getTime() / 1000),
+    last_activity_at: null,
+    availability_status: 'offline',
   };
 }
 
 interface UseContactsReturn {
-  contacts: ChatwootContact[];
+  contacts: CRMContact[];
   loading: boolean;
   error: string | null;
-  search: (query: string) => Promise<ChatwootContact[]>;
+  search: (query: string) => Promise<CRMContact[]>;
   refresh: () => Promise<void>;
   syncFromChatwoot: () => Promise<void>;
 }
 
 export function useContactsSupabase(): UseContactsReturn {
-  const [contacts, setContacts] = useState<ChatwootContact[]>([]);
+  const [contacts, setContacts] = useState<CRMContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +68,7 @@ export function useContactsSupabase(): UseContactsReturn {
         .select('*')
         .order('name');
       if (err) throw err;
-      setContacts((data as SupabaseContact[] || []).map(mapToChatwootContact).filter(Boolean) as ChatwootContact[]);
+      setContacts((data as SupabaseContact[] || []).map(mapToContact));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar contatos');
     } finally {
@@ -64,18 +78,20 @@ export function useContactsSupabase(): UseContactsReturn {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const search = useCallback(async (query: string): Promise<ChatwootContact[]> => {
+  const search = useCallback(async (query: string): Promise<CRMContact[]> => {
     if (!query.trim()) {
-      const { data } = await supabase.from('contacts').select('*').order('name').limit(50);
-      return (data as SupabaseContact[] || []).map(mapToChatwootContact).filter(Boolean) as ChatwootContact[];
+      const { data, error: err } = await supabase.from('contacts').select('*').order('name').limit(50);
+      if (err) throw err;
+      return (data as SupabaseContact[] || []).map(mapToContact);
     }
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from('contacts')
       .select('*')
-      .ilike('name', `%${query}%`)
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
       .order('name')
       .limit(50);
-    return (data as SupabaseContact[] || []).map(mapToChatwootContact).filter(Boolean) as ChatwootContact[];
+    if (err) throw err;
+    return (data as SupabaseContact[] || []).map(mapToContact);
   }, []);
 
   const syncFromChatwoot = useCallback(async () => {

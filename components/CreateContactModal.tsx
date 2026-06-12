@@ -57,7 +57,13 @@ const CreateContactModal: React.FC<CreateContactModalProps> = ({
             email: email.trim() || undefined,
             phone_number: phoneNumber.trim() || undefined,
           });
-          await supabase.from('contacts').update({ chatwoot_id: chatwootContact.id }).eq('id', (inserted as any).id);
+          if (chatwootContact?.id) {
+            const { error: updateErr } = await supabase
+              .from('contacts')
+              .update({ chatwoot_id: chatwootContact.id })
+              .eq('id', (inserted as any).id);
+            if (updateErr) throw updateErr;
+          }
         } catch (cwErr: any) {
           console.warn('Contato criado no Supabase, mas falha ao sincronizar com Chatwoot:', cwErr.message);
         }

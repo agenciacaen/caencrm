@@ -3,12 +3,13 @@ import { X, Loader2, Building2, Globe, Phone, FileText, Trash2, AlertTriangle, A
 import { supabase } from '../api/supabase';
 import chatwootAPI from '../api/chatwoot';
 import type { ChatwootCompany } from '../types/chatwoot';
+import type { CRMCompany } from '../hooks/useCompaniesSupabase';
 
 interface EditCompanyModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  company: ChatwootCompany | null;
+  company: (ChatwootCompany | CRMCompany) | null;
 }
 
 const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
@@ -50,22 +51,31 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     setSubmitError(null);
 
     try {
-      await supabase.from('companies').update({
+      const supabaseId = (company as CRMCompany).supabase_id;
+      const chatwootId = (company as CRMCompany).chatwoot_id ?? (company.id > 0 ? company.id : null);
+
+      const update = supabase.from('companies').update({
         name: name.trim(),
         website: website.trim() || null,
         phone_number: phoneNumber.trim() || null,
         description: description.trim() || null,
-      }).eq('chatwoot_id', company.id);
+      });
+      const { error: updateErr } = supabaseId
+        ? await update.eq('id', supabaseId)
+        : await update.eq('chatwoot_id', company.id);
+      if (updateErr) throw updateErr;
 
-      try {
-        await chatwootAPI.companies.update(company.id, {
-          name: name.trim(),
-          website: website.trim() || undefined,
-          phone_number: phoneNumber.trim() || undefined,
-          description: description.trim() || undefined,
-        });
-      } catch (cwErr: any) {
-        console.warn('Empresa atualizada no Supabase, mas falha ao atualizar no Chatwoot:', cwErr.message);
+      if (chatwootId) {
+        try {
+          await chatwootAPI.companies.update(chatwootId, {
+            name: name.trim(),
+            website: website.trim() || undefined,
+            phone_number: phoneNumber.trim() || undefined,
+            description: description.trim() || undefined,
+          });
+        } catch (cwErr: any) {
+          console.warn('Empresa atualizada no Supabase, mas falha ao atualizar no Chatwoot:', cwErr.message);
+        }
       }
 
       onSuccess();
@@ -83,12 +93,20 @@ const EditCompanyModal: React.FC<EditCompanyModalProps> = ({
     setSubmitError(null);
 
     try {
-      await supabase.from('companies').delete().eq('chatwoot_id', company.id);
+      const supabaseId = (company as CRMCompany).supabase_id;
+      const chatwootId = (company as CRMCompany).chatwoot_id ?? (company.id > 0 ? company.id : null);
+      const deletion = supabase.from('companies').delete();
+      const { error: deleteErr } = supabaseId
+        ? await deletion.eq('id', supabaseId)
+        : await deletion.eq('chatwoot_id', company.id);
+      if (deleteErr) throw deleteErr;
 
-      try {
-        await chatwootAPI.companies.delete(company.id);
-      } catch (cwErr: any) {
-        console.warn('Empresa excluída do Supabase, mas falha ao excluir do Chatwoot:', cwErr.message);
+      if (chatwootId) {
+        try {
+          await chatwootAPI.companies.delete(chatwootId);
+        } catch (cwErr: any) {
+          console.warn('Empresa excluída do Supabase, mas falha ao excluir do Chatwoot:', cwErr.message);
+        }
       }
 
       onSuccess();

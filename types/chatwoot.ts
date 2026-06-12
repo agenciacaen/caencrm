@@ -184,6 +184,8 @@ export interface ChatwootCompany {
   description: string | null;
   website: string | null;
   phone_number: string | null;
+  industry?: string | null;
+  additional_attributes?: Record<string, unknown>;
   custom_attributes: Record<string, unknown>;
   created_at: string;
   updated_at: string;

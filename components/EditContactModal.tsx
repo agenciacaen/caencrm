@@ -3,12 +3,13 @@ import { X, Loader2, User, Mail, Phone, Trash2, AlertTriangle, AlertCircle, Save
 import { supabase } from '../api/supabase';
 import chatwootAPI from '../api/chatwoot';
 import type { ChatwootContact } from '../types/chatwoot';
+import type { CRMContact } from '../hooks/useContactsSupabase';
 
 interface EditContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  contact: ChatwootContact | null;
+  contact: (ChatwootContact | CRMContact) | null;
 }
 
 const EditContactModal: React.FC<EditContactModalProps> = ({
@@ -48,20 +49,29 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
     setSubmitError(null);
 
     try {
-      await supabase.from('contacts').update({
+      const supabaseId = (contact as CRMContact).supabase_id;
+      const chatwootId = (contact as CRMContact).chatwoot_id ?? (contact.id > 0 ? contact.id : null);
+
+      const update = supabase.from('contacts').update({
         name: name.trim(),
         email: email.trim() || null,
         phone: phoneNumber.trim() || null,
-      }).eq('chatwoot_id', contact.id);
+      });
+      const { error: updateErr } = supabaseId
+        ? await update.eq('id', supabaseId)
+        : await update.eq('chatwoot_id', contact.id);
+      if (updateErr) throw updateErr;
 
-      try {
-        await chatwootAPI.contacts.update(contact.id, {
-          name: name.trim(),
-          email: email.trim() || undefined,
-          phone_number: phoneNumber.trim() || undefined,
-        });
-      } catch (cwErr: any) {
-        console.warn('Contato atualizado no Supabase, mas falha ao atualizar no Chatwoot:', cwErr.message);
+      if (chatwootId) {
+        try {
+          await chatwootAPI.contacts.update(chatwootId, {
+            name: name.trim(),
+            email: email.trim() || undefined,
+            phone_number: phoneNumber.trim() || undefined,
+          });
+        } catch (cwErr: any) {
+          console.warn('Contato atualizado no Supabase, mas falha ao atualizar no Chatwoot:', cwErr.message);
+        }
       }
 
       onSuccess();
@@ -79,12 +89,20 @@ const EditContactModal: React.FC<EditContactModalProps> = ({
     setSubmitError(null);
 
     try {
-      await supabase.from('contacts').delete().eq('chatwoot_id', contact.id);
+      const supabaseId = (contact as CRMContact).supabase_id;
+      const chatwootId = (contact as CRMContact).chatwoot_id ?? (contact.id > 0 ? contact.id : null);
+      const deletion = supabase.from('contacts').delete();
+      const { error: deleteErr } = supabaseId
+        ? await deletion.eq('id', supabaseId)
+        : await deletion.eq('chatwoot_id', contact.id);
+      if (deleteErr) throw deleteErr;
 
-      try {
-        await chatwootAPI.contacts.delete(contact.id);
-      } catch (cwErr: any) {
-        console.warn('Contato excluído do Supabase, mas falha ao excluir do Chatwoot:', cwErr.message);
+      if (chatwootId) {
+        try {
+          await chatwootAPI.contacts.delete(chatwootId);
+        } catch (cwErr: any) {
+          console.warn('Contato excluído do Supabase, mas falha ao excluir do Chatwoot:', cwErr.message);
+        }
       }
 
       onSuccess();

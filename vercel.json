@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/chatwoot-api-v1/:path*",
+      "destination": "https://chatwoot.agenciacaen.com.br/api/v1/:path*"
+    },
+    {
+      "source": "/chatwoot-api-v2/:path*",
+      "destination": "https://chatwoot.agenciacaen.com.br/api/v2/:path*"
+    },
+    {
+      "source": "/chatwoot-auth/:path*",
+      "destination": "https://chatwoot.agenciacaen.com.br/auth/:path*"
+    },
+    {
+      "source": "/chatwoot-cable/:path*",
+      "destination": "https://chatwoot.agenciacaen.com.br/cable/:path*"
+    }
+  ]
+}

@@ -31,12 +31,20 @@ export default function ContactDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    supabase.from('contacts').select('*').eq('chatwoot_id', Number(id)).single()
-      .then(({ data, error: err }) => {
+    setError(null);
+    (async () => {
+      const isNumericId = /^\d+$/.test(id);
+      const query = supabase.from('contacts').select('*');
+      const { data, error: err } = isNumericId
+        ? await query.eq('chatwoot_id', Number(id)).single()
+        : await query.eq('id', id).single();
+
         if (err || !data) { setError('Contato não encontrado'); return; }
         const d = data as any;
-        const mappedContact: ChatwootContact = {
-          id: d.chatwoot_id,
+        const mappedContact = {
+          id: d.chatwoot_id ?? -1,
+          supabase_id: d.id,
+          chatwoot_id: d.chatwoot_id,
           name: d.name,
           email: d.email || null,
           phone_number: d.phone || null,
@@ -47,16 +55,18 @@ export default function ContactDetail() {
           created_at: 0,
           last_activity_at: null,
           availability_status: 'offline',
-        };
+        } as ChatwootContact;
         setContact(mappedContact);
         if (d.company_id) {
           setCompanyLoading(true);
-          supabase.from('companies').select('*').eq('chatwoot_id', d.company_id).single()
-            .then(({ data: compData }) => {
+          try {
+            const { data: compData } = await supabase.from('companies').select('*').eq('chatwoot_id', d.company_id).single();
               if (compData) {
                 const cd = compData as any;
                 setLinkedCompany({
-                  id: cd.chatwoot_id,
+                  id: cd.chatwoot_id ?? -1,
+                  supabase_id: cd.id,
+                  chatwoot_id: cd.chatwoot_id,
                   name: cd.name,
                   website: cd.website,
                   phone_number: cd.phone_number,
@@ -66,11 +76,11 @@ export default function ContactDetail() {
                   updated_at: cd.updated_at,
                 });
               }
-            }).catch(() => {}).finally(() => setCompanyLoading(false));
+          } finally {
+            setCompanyLoading(false);
+          }
         }
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    })().catch(err => setError(err.message)).finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => {
@@ -88,10 +98,13 @@ export default function ContactDetail() {
   useEffect(() => {
     if (!isCompanyModalOpen) { setCompanyResults([]); setCompanySearch(''); return; }
     setCompanySearchLoading(true);
-    supabase.from('companies').select('*').order('name').limit(50)
-      .then(({ data }) => {
+    (async () => {
+      const { data, error: err } = await supabase.from('companies').select('*').order('name').limit(50);
+      if (err) throw err;
         const list = (data || []).map((c: any) => ({
-          id: c.chatwoot_id,
+          id: c.chatwoot_id ?? -1,
+          supabase_id: c.id,
+          chatwoot_id: c.chatwoot_id,
           name: c.name,
           website: c.website,
           phone_number: c.phone_number,
@@ -106,15 +119,21 @@ export default function ContactDetail() {
         } else {
           setCompanyResults(list);
         }
-      }).catch(() => {}).finally(() => setCompanySearchLoading(false));
+    })().catch(() => setCompanyResults([])).finally(() => setCompanySearchLoading(false));
   }, [isCompanyModalOpen, companySearch]);
 
   const handleLinkCompany = async (company: ChatwootCompany) => {
     if (!contact) return;
     try {
-      await supabase.from('contacts').update({ company_id: company.id }).eq('chatwoot_id', contact.id);
+      const companyChatwootId = (company as any).chatwoot_id ?? (company.id > 0 ? company.id : null);
+      if (!companyChatwootId) return;
+      const { error: updateErr } = await supabase
+        .from('contacts')
+        .update({ company_id: companyChatwootId })
+        .eq('id', (contact as any).supabase_id || id);
+      if (updateErr) throw updateErr;
       try {
-        await addContactToCompany(company.id, contact.id);
+        if (contact.id > 0) await addContactToCompany(companyChatwootId, contact.id);
       } catch (e) { console.warn('Falha ao vincular no Chatwoot:', e); }
       setLinkedCompany(company);
       setIsCompanyModalOpen(false);
@@ -124,7 +143,11 @@ export default function ContactDetail() {
   const handleUnlinkCompany = async () => {
     if (!contact) return;
     try {
-      await supabase.from('contacts').update({ company_id: null }).eq('chatwoot_id', contact.id);
+      const { error: updateErr } = await supabase
+        .from('contacts')
+        .update({ company_id: null })
+        .eq('id', (contact as any).supabase_id || id);
+      if (updateErr) throw updateErr;
       setLinkedCompany(null);
     } catch (e) { console.error(e); }
   };
@@ -258,7 +281,7 @@ export default function ContactDetail() {
               {companyLoading ? (
                 <Loader2 size={14} className="animate-spin text-slate-400" />
               ) : linkedCompany ? (
-                <button onClick={() => navigate(`/empresas/${linkedCompany.id}`)} className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all text-left">
+                <button onClick={() => navigate(`/empresas/${(linkedCompany as any).supabase_id || linkedCompany.id}`)} className="w-full flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all text-left">
                   <Building2 size={16} className="text-brand-500 shrink-0" />
                   <div>
                     <p className="font-bold text-xs text-slate-800 dark:text-slate-200">{linkedCompany.name}</p>
@@ -282,8 +305,8 @@ export default function ContactDetail() {
         isOpen={isDealFormOpen}
         onClose={() => setIsDealFormOpen(false)}
         onSuccess={() => {}}
-        preselectedContactId={contact?.id || undefined}
-        preselectedCompanyId={linkedCompany?.id || undefined}
+        preselectedContactId={contact?.id && contact.id > 0 ? contact.id : undefined}
+        preselectedCompanyId={linkedCompany?.id && linkedCompany.id > 0 ? linkedCompany.id : undefined}
       />
 
       {/* Company Selector Modal */}

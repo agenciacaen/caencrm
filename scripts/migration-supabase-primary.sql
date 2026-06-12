@@ -5,18 +5,26 @@
 -- 1. Tornar chatwoot_id nullable (criação opcional no Chatwoot)
 ALTER TABLE public.contacts ALTER COLUMN chatwoot_id DROP NOT NULL;
 ALTER TABLE public.companies ALTER COLUMN chatwoot_id DROP NOT NULL;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS phone_number text;
+ALTER TABLE public.companies ADD COLUMN IF NOT EXISTS description text;
 
--- 2. Remover unique constraint existente em chatwoot_id (se houver)
---    (será recriado como unique nullable - múltiplos NULLs são permitidos)
+-- 2. Garantir índice único simples em chatwoot_id.
+--    PostgreSQL permite múltiplos NULLs em UNIQUE e o Data API precisa de
+--    um índice/constraint não parcial para upsert/onConflict funcionar.
 BEGIN;
   ALTER TABLE public.contacts DROP CONSTRAINT IF EXISTS contacts_chatwoot_id_key;
-  CREATE UNIQUE INDEX IF NOT EXISTS contacts_chatwoot_id_unique ON public.contacts (chatwoot_id) WHERE chatwoot_id IS NOT NULL;
+  DROP INDEX IF EXISTS contacts_chatwoot_id_unique;
+  CREATE UNIQUE INDEX IF NOT EXISTS contacts_chatwoot_id_unique ON public.contacts (chatwoot_id);
 COMMIT;
 
 BEGIN;
   ALTER TABLE public.companies DROP CONSTRAINT IF EXISTS companies_chatwoot_id_key;
-  CREATE UNIQUE INDEX IF NOT EXISTS companies_chatwoot_id_unique ON public.companies (chatwoot_id) WHERE chatwoot_id IS NOT NULL;
+  DROP INDEX IF EXISTS companies_chatwoot_id_unique;
+  CREATE UNIQUE INDEX IF NOT EXISTS companies_chatwoot_id_unique ON public.companies (chatwoot_id);
 COMMIT;
+
+-- 2b. Escopo por conta Chatwoot
+ALTER TABLE public.deals ADD COLUMN IF NOT EXISTS account_id text NOT NULL DEFAULT '';
 
 -- 3. Criar índices para busca por email (dedup no sync)
 CREATE INDEX IF NOT EXISTS idx_contacts_email ON public.contacts (email) WHERE email IS NOT NULL;
@@ -54,3 +62,12 @@ CREATE POLICY "allow_all_products" ON public.products
 DROP POLICY IF EXISTS "allow_all_deal_products" ON public.deal_products;
 CREATE POLICY "allow_all_deal_products" ON public.deal_products
   FOR ALL USING (true) WITH CHECK (true);
+
+-- 5. Garantir acesso via Data API para anon/authenticated.
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.contacts TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.companies TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.deals TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.leads TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.products TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.deal_products TO anon, authenticated;

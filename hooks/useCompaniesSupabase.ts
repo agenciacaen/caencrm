@@ -3,6 +3,11 @@ import { supabase } from '../api/supabase';
 import { syncCompaniesFromChatwoot } from '../api/sync';
 import type { ChatwootCompany } from '../types/chatwoot';
 
+export type CRMCompany = ChatwootCompany & {
+  supabase_id: string;
+  chatwoot_id: number | null;
+};
+
 interface SupabaseCompany {
   id: string;
   chatwoot_id: number | null;
@@ -17,30 +22,39 @@ interface SupabaseCompany {
   updated_at: string;
 }
 
-function mapToChatwootCompany(sc: SupabaseCompany): ChatwootCompany | null {
-  if (!sc.chatwoot_id) return null;
+function fallbackId(id: string): number {
+  const parsed = parseInt(id.replace(/\D/g, '').slice(0, 8), 10);
+  return Number.isFinite(parsed) ? -parsed : -1;
+}
+
+function mapToCompany(sc: SupabaseCompany): CRMCompany {
   return {
-    id: sc.chatwoot_id,
+    id: sc.chatwoot_id ?? fallbackId(sc.id),
+    supabase_id: sc.id,
+    chatwoot_id: sc.chatwoot_id,
     name: sc.name,
-    website: sc.website || undefined,
-    phone_number: sc.phone_number || undefined,
-    description: sc.description || undefined,
+    website: sc.website || null,
+    phone_number: sc.phone_number || null,
+    description: sc.description || null,
     industry: sc.industry || undefined,
     custom_attributes: sc.custom_attributes as Record<string, unknown>,
+    additional_attributes: sc.additional_attributes as Record<string, unknown>,
+    created_at: sc.created_at,
+    updated_at: sc.updated_at,
   };
 }
 
 interface UseCompaniesReturn {
-  companies: ChatwootCompany[];
+  companies: CRMCompany[];
   loading: boolean;
   error: string | null;
-  search: (query: string) => Promise<ChatwootCompany[]>;
+  search: (query: string) => Promise<CRMCompany[]>;
   refresh: () => Promise<void>;
   syncFromChatwoot: () => Promise<void>;
 }
 
 export function useCompaniesSupabase(): UseCompaniesReturn {
-  const [companies, setCompanies] = useState<ChatwootCompany[]>([]);
+  const [companies, setCompanies] = useState<CRMCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +67,7 @@ export function useCompaniesSupabase(): UseCompaniesReturn {
         .select('*')
         .order('name');
       if (err) throw err;
-      setCompanies((data as SupabaseCompany[] || []).map(mapToChatwootCompany).filter(Boolean) as ChatwootCompany[]);
+      setCompanies((data as SupabaseCompany[] || []).map(mapToCompany));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar empresas');
     } finally {
@@ -63,18 +77,20 @@ export function useCompaniesSupabase(): UseCompaniesReturn {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const search = useCallback(async (query: string): Promise<ChatwootCompany[]> => {
+  const search = useCallback(async (query: string): Promise<CRMCompany[]> => {
     if (!query.trim()) {
-      const { data } = await supabase.from('companies').select('*').order('name').limit(50);
-      return (data as SupabaseCompany[] || []).map(mapToChatwootCompany).filter(Boolean) as ChatwootCompany[];
+      const { data, error: err } = await supabase.from('companies').select('*').order('name').limit(50);
+      if (err) throw err;
+      return (data as SupabaseCompany[] || []).map(mapToCompany);
     }
-    const { data } = await supabase
+    const { data, error: err } = await supabase
       .from('companies')
       .select('*')
-      .ilike('name', `%${query}%`)
+      .or(`name.ilike.%${query}%,website.ilike.%${query}%,phone_number.ilike.%${query}%,description.ilike.%${query}%`)
       .order('name')
       .limit(50);
-    return (data as SupabaseCompany[] || []).map(mapToChatwootCompany).filter(Boolean) as ChatwootCompany[];
+    if (err) throw err;
+    return (data as SupabaseCompany[] || []).map(mapToCompany);
   }, []);
 
   const syncFromChatwoot = useCallback(async () => {

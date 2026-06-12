@@ -22,12 +22,20 @@ export default function CompanyDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    supabase.from('companies').select('*').eq('chatwoot_id', Number(id)).single()
-      .then(({ data, error: err }) => {
+    setError(null);
+    (async () => {
+      const isNumericId = /^\d+$/.test(id);
+      const query = supabase.from('companies').select('*');
+      const { data, error: err } = isNumericId
+        ? await query.eq('chatwoot_id', Number(id)).single()
+        : await query.eq('id', id).single();
+
         if (err || !data) { setError('Empresa não encontrada'); return; }
         const d = data as any;
         setCompany({
-          id: d.chatwoot_id,
+          id: d.chatwoot_id ?? -1,
+          supabase_id: d.id,
+          chatwoot_id: d.chatwoot_id,
           name: d.name,
           website: d.website,
           phone_number: d.phone_number,
@@ -36,18 +44,21 @@ export default function CompanyDetail() {
           created_at: d.created_at,
           updated_at: d.updated_at,
         });
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    })().catch(err => setError(err.message)).finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => {
     if (activeTab !== 'contatos' || !id || !company) return;
     setContactsLoading(true);
-    supabase.from('contacts').select('*').eq('company_id', Number(id)).order('name')
-      .then(({ data }) => {
+    (async () => {
+      const companyChatwootId = (company as any).chatwoot_id ?? (company.id > 0 ? company.id : null);
+      if (!companyChatwootId) { setContacts([]); return; }
+      const { data, error: err } = await supabase.from('contacts').select('*').eq('company_id', companyChatwootId).order('name');
+      if (err) throw err;
         setContacts((data || []).map((c: any) => ({
-          id: c.chatwoot_id,
+          id: c.chatwoot_id ?? -1,
+          supabase_id: c.id,
+          chatwoot_id: c.chatwoot_id,
           name: c.name,
           email: c.email || null,
           phone_number: c.phone || null,
@@ -59,9 +70,7 @@ export default function CompanyDetail() {
           last_activity_at: null,
           availability_status: 'offline',
         } as ChatwootContact)));
-      })
-      .catch(() => setContacts([]))
-      .finally(() => setContactsLoading(false));
+    })().catch(() => setContacts([])).finally(() => setContactsLoading(false));
   }, [activeTab, id, company]);
 
   if (loading) return <LoadingState message="Carregando empresa..." />;
@@ -138,7 +147,7 @@ export default function CompanyDetail() {
               contacts.map(contact => (
                 <div
                   key={contact.id}
-                  onClick={() => navigate(`/contatos/${contact.id}`)}
+                  onClick={() => navigate(`/contatos/${(contact as any).supabase_id || contact.id}`)}
                   className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500/30 cursor-pointer transition-all"
                 >
                   <div className="flex items-center gap-3">

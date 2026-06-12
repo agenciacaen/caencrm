@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Building2, Search, Plus, Menu, Globe, Phone, Loader2, Edit3, Trash2 } from 'lucide-react';
 import { useCompaniesSupabase } from '../hooks/useCompaniesSupabase';
 import { supabase } from '../api/supabase';
+import chatwootAPI from '../api/chatwoot';
 import CreateCompanyModal from './CreateCompanyModal';
 import EditCompanyModal from './EditCompanyModal';
 import type { ChatwootCompany } from '../types/chatwoot';
@@ -31,18 +32,18 @@ const Companies: React.FC = () => {
     );
   }, [companies, searchTerm]);
 
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredCompanies.map(c => c.id));
+      setSelectedIds(filteredCompanies.map(c => c.supabase_id));
     } else {
       setSelectedIds([]);
     }
   };
 
-  const handleSelectOne = (id: number, checked: boolean) => {
+  const handleSelectOne = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedIds(prev => [...prev, id]);
     } else {
@@ -58,7 +59,16 @@ const Companies: React.FC = () => {
     setIsDeleting(true);
     try {
       for (const id of selectedIds) {
-        await supabase.from('companies').delete().eq('chatwoot_id', id);
+        const company = companies.find(c => c.supabase_id === id);
+        const { error } = await supabase.from('companies').delete().eq('id', id);
+        if (error) throw error;
+        if (company?.chatwoot_id) {
+          try {
+            await chatwootAPI.companies.delete(company.chatwoot_id);
+          } catch (cwErr) {
+            console.warn('Empresa removida do Supabase, mas falha ao remover no Chatwoot:', cwErr);
+          }
+        }
       }
       setSelectedIds([]);
       refresh();
@@ -131,12 +141,12 @@ const Companies: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold text-xs">
                   {filteredCompanies.map((company) => {
-                    const isSelected = selectedIds.includes(company.id);
+                    const isSelected = selectedIds.includes(company.supabase_id);
                     return (
-                      <tr key={company.id} onClick={() => handleEditClick(company)} className={`hover:bg-slate-50/50 dark:hover:bg-slate-850/40 transition-colors cursor-pointer group ${isSelected ? 'bg-brand-50/10 dark:bg-brand-500/5' : ''}`}>
+                      <tr key={company.supabase_id} onClick={() => handleEditClick(company)} className={`hover:bg-slate-50/50 dark:hover:bg-slate-850/40 transition-colors cursor-pointer group ${isSelected ? 'bg-brand-50/10 dark:bg-brand-500/5' : ''}`}>
                         <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                            checked={isSelected} onChange={(e) => handleSelectOne(company.id, e.target.checked)}
+                            checked={isSelected} onChange={(e) => handleSelectOne(company.supabase_id, e.target.checked)}
                           />
                         </td>
                         <td className="px-8 py-5">
@@ -146,7 +156,7 @@ const Companies: React.FC = () => {
                             </div>
                             <div>
                               <p className="font-extrabold text-slate-800 dark:text-slate-200 text-sm group-hover:text-brand-600 transition-colors">{company.name}</p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mt-0.5">Empresa</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest mt-0.5">{company.chatwoot_id ? `Chatwoot #${company.chatwoot_id}` : 'Apenas Supabase'}</p>
                             </div>
                           </div>
                         </td>

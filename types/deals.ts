@@ -19,6 +19,7 @@ export interface Deal {
   expectedCloseDate: string | null;
   products: string | null;
   notes: string | null;
+  accountId: string;
   createdAt: string;
   updatedAt: string;
 }

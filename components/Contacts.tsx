@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, Search, Plus, Menu, FileDown, Mail, Phone, Loader2, Trash2, Edit3 } from 'lucide-react';
 import { useContactsSupabase } from '../hooks/useContactsSupabase';
 import { supabase } from '../api/supabase';
+import chatwootAPI from '../api/chatwoot';
 import EditContactModal from './EditContactModal';
 import CreateContactModal from './CreateContactModal';
 import EmptyState from './ui/EmptyState';
@@ -17,7 +18,7 @@ const Contacts: React.FC = () => {
   const { contacts, loading, error, refresh } = useContactsSupabase();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -74,13 +75,13 @@ const Contacts: React.FC = () => {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredContacts.map(c => c.id));
+      setSelectedIds(filteredContacts.map(c => c.supabase_id));
     } else {
       setSelectedIds([]);
     }
   };
 
-  const handleSelectOne = (id: number, checked: boolean) => {
+  const handleSelectOne = (id: string, checked: boolean) => {
     if (checked) {
       setSelectedIds(prev => [...prev, id]);
     } else {
@@ -96,7 +97,16 @@ const Contacts: React.FC = () => {
     setIsDeleting(true);
     try {
       for (const id of selectedIds) {
-        await supabase.from('contacts').delete().eq('chatwoot_id', id);
+        const contact = contacts.find(c => c.supabase_id === id);
+        const { error } = await supabase.from('contacts').delete().eq('id', id);
+        if (error) throw error;
+        if (contact?.chatwoot_id) {
+          try {
+            await chatwootAPI.contacts.delete(contact.chatwoot_id);
+          } catch (cwErr) {
+            console.warn('Contato removido do Supabase, mas falha ao remover no Chatwoot:', cwErr);
+          }
+        }
       }
       setSelectedIds([]);
       refresh();
@@ -170,12 +180,12 @@ const Contacts: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold">
                   {filteredContacts.map((c) => {
-                    const isSelected = selectedIds.includes(c.id);
+                    const isSelected = selectedIds.includes(c.supabase_id);
                     return (
-                      <tr key={c.id} onClick={() => handleEditClick(c)} className={`hover:bg-slate-50/50 dark:hover:bg-slate-850/40 transition-colors cursor-pointer group ${isSelected ? 'bg-brand-50/10 dark:bg-brand-500/5' : ''}`}>
+                      <tr key={c.supabase_id} onClick={() => handleEditClick(c)} className={`hover:bg-slate-50/50 dark:hover:bg-slate-850/40 transition-colors cursor-pointer group ${isSelected ? 'bg-brand-50/10 dark:bg-brand-500/5' : ''}`}>
                         <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                            checked={isSelected} onChange={(e) => handleSelectOne(c.id, e.target.checked)}
+                            checked={isSelected} onChange={(e) => handleSelectOne(c.supabase_id, e.target.checked)}
                           />
                         </td>
                         <td className="px-8 py-5">
@@ -189,7 +199,7 @@ const Contacts: React.FC = () => {
                             )}
                             <div>
                               <p className="font-extrabold text-slate-800 dark:text-slate-200 text-sm group-hover:text-brand-600 transition-colors">{c.name}</p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">Contato</p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">{c.chatwoot_id ? `Chatwoot #${c.chatwoot_id}` : 'Apenas Supabase'}</p>
                             </div>
                           </div>
                         </td>

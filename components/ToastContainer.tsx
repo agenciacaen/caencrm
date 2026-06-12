@@ -62,7 +62,9 @@ export default function ToastContainer() {
   return (
     <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 pointer-events-none max-h-screen overflow-hidden">
       {toasts.map(toast => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
+        <React.Fragment key={toast.id}>
+          <ToastItem toast={toast} onDismiss={() => removeToast(toast.id)} />
+        </React.Fragment>
       ))}
       <style>{`
         @keyframes slide-up {

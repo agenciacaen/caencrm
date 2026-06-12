@@ -51,8 +51,8 @@ export default function App() {
         <Route path="/conversas" element={<Page Comp={Conversations} />} />
         <Route path="/agente" element={<Page Comp={AIAgent} />} />
         <Route path="/crm" element={<Navigate to="/deals/board" replace />} />
-        <Route path="/deals" element={<Page Comp={DealsList} />} />
-        <Route path="/deals/board" element={<Page Comp={DealsKanban} />} />
+        <Route path="/deals" element={<Page Comp={DealsKanban} />} />
+        <Route path="/deals/list" element={<Page Comp={DealsList} />} />
         <Route path="/deals/:id" element={<Page Comp={DealDetail} />} />
         <Route path="/importador" element={<Page Comp={BulkImport} />} />
         <Route path="/agendamentos" element={<Page Comp={Appointments} />} />

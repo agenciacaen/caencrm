@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Briefcase, User, Building2, MessageSquare, Edit3, Trash2, Loader2 } from 'lucide-react';
 import { useDeals } from '../../hooks/useDeals';
 import { DEAL_STAGE_LABELS, DEAL_STAGE_COLORS } from '../../types/deals';
 import EmptyState from '../ui/EmptyState';
+import DealForm from './DealForm';
 
 export default function DealDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { allDeals } = useDeals();
+  const { allDeals, deleteDeal } = useDeals();
   const deal = allDeals.find(d => d.id === id);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   if (!deal) {
     return (
@@ -18,6 +22,15 @@ export default function DealDetail() {
       </div>
     );
   }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try {
+      await deleteDeal(deal.id);
+      navigate('/deals', { replace: true });
+    } catch { setDeleting(false); }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
@@ -38,10 +51,30 @@ export default function DealDetail() {
             </div>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowEditForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 transition-all"
+          >
+            <Edit3 size={14} />
+            Editar
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              confirmDelete
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-200 dark:border-red-800'
+            }`}
+          >
+            {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+            {confirmDelete ? 'Confirmar?' : 'Excluir'}
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Value Card */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor</p>
           <p className="text-3xl font-extrabold text-slate-900 dark:text-white">
@@ -49,7 +82,6 @@ export default function DealDetail() {
           </p>
         </div>
 
-        {/* Links */}
         <div className="grid grid-cols-3 gap-4">
           {deal.contactId && (
             <button
@@ -83,7 +115,6 @@ export default function DealDetail() {
           )}
         </div>
 
-        {/* Details */}
         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
           <h3 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-widest">Detalhes</h3>
           <DetailRow label="Produtos" value={deal.products || '—'} />
@@ -98,6 +129,13 @@ export default function DealDetail() {
           )}
         </div>
       </div>
+
+      <DealForm
+        isOpen={showEditForm}
+        onClose={() => setShowEditForm(false)}
+        onSuccess={() => { setShowEditForm(false); }}
+        editingDeal={deal}
+      />
     </div>
   );
 }

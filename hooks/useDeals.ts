@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../api/supabase';
+import { getAccountId } from '../api/chatwoot';
 import type { Deal, DealStage } from '../types/deals';
 
 interface DealRow {
@@ -15,6 +16,7 @@ interface DealRow {
   expected_close_date: string | null;
   products: string | null;
   notes: string | null;
+  account_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +35,7 @@ function mapRowToDeal(row: DealRow): Deal {
     expectedCloseDate: row.expected_close_date,
     products: row.products,
     notes: row.notes,
+    accountId: row.account_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -51,7 +54,12 @@ function mapDealToRow(deal: Omit<Deal, 'id' | 'createdAt' | 'updatedAt'>) {
     expected_close_date: deal.expectedCloseDate,
     products: deal.products,
     notes: deal.notes,
+    account_id: deal.accountId,
   };
+}
+
+function accountFilter() {
+  return { account_id: getAccountId() };
 }
 
 interface UseDealsReturn {
@@ -75,9 +83,11 @@ export function useDeals(): UseDealsReturn {
     setLoading(true);
     setError(null);
     try {
+      const { account_id } = accountFilter();
       const { data, error: err } = await supabase
         .from('deals')
         .select('*')
+        .eq('account_id', account_id)
         .order('created_at', { ascending: false });
       if (err) throw err;
       setAllDeals((data as DealRow[] || []).map(mapRowToDeal));
@@ -93,9 +103,11 @@ export function useDeals(): UseDealsReturn {
   }, [fetchAll]);
 
   const getDealsForContact = useCallback(async (contactId: number): Promise<Deal[]> => {
+    const { account_id } = accountFilter();
     const { data, error: err } = await supabase
       .from('deals')
       .select('*')
+      .eq('account_id', account_id)
       .eq('contact_id', contactId)
       .order('created_at', { ascending: false });
     if (err) throw err;
@@ -103,9 +115,11 @@ export function useDeals(): UseDealsReturn {
   }, []);
 
   const getDealsForCompany = useCallback(async (companyId: number): Promise<Deal[]> => {
+    const { account_id } = accountFilter();
     const { data, error: err } = await supabase
       .from('deals')
       .select('*')
+      .eq('account_id', account_id)
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
     if (err) throw err;
@@ -141,20 +155,24 @@ export function useDeals(): UseDealsReturn {
     if (updates.products !== undefined) row.products = updates.products;
     if (updates.notes !== undefined) row.notes = updates.notes;
 
+    const { account_id } = accountFilter();
     const { error: err } = await supabase
       .from('deals')
       .update(row)
-      .eq('id', dealId);
+      .eq('id', dealId)
+      .eq('account_id', account_id);
     if (err) throw err;
 
     setAllDeals(prev => prev.map(d => d.id === dealId ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d));
   }, []);
 
   const deleteDeal = useCallback(async (dealId: string) => {
+    const { account_id } = accountFilter();
     const { error: err } = await supabase
       .from('deals')
       .delete()
-      .eq('id', dealId);
+      .eq('id', dealId)
+      .eq('account_id', account_id);
     if (err) throw err;
     setAllDeals(prev => prev.filter(d => d.id !== dealId));
   }, []);

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, User, Bell, Shield, CreditCard, Menu, Save, Loader2, Copy, CheckCircle, Eye, EyeOff, RefreshCw, Trash2, Key, Smartphone, Lock, Globe, Users, MessageSquare, BarChart3 } from 'lucide-react';
+import { Settings, User, Bell, Shield, CreditCard, Menu, Save, Loader2, Copy, CheckCircle, Eye, EyeOff, RefreshCw, Trash2, Key, Smartphone, Lock, Globe, Users, MessageSquare, BarChart3, LogOut, Building2 } from 'lucide-react';
 import { useAgents } from '../hooks/useAccount';
 import { updateAgent } from '../api/chatwoot';
 import { useMenuToggle } from '../contexts/MenuContext';
 import { useToast } from '../contexts/ToastContext';
-
-type Section = 'profile' | 'notifications' | 'security' | 'billing';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NotificationPrefs {
   emailNotifications: boolean;
@@ -44,8 +43,11 @@ function getAuthToken(): string {
   return '';
 }
 
+type Section = 'profile' | 'notifications' | 'security' | 'billing' | 'account';
+
 const sections: { id: Section; icon: React.ReactNode; label: string }[] = [
   { id: 'profile', icon: <User size={16} />, label: 'Minha Conta' },
+  { id: 'account', icon: <Globe size={16} />, label: 'Conta Chatwoot' },
   { id: 'notifications', icon: <Bell size={16} />, label: 'Notificações' },
   { id: 'security', icon: <Shield size={16} />, label: 'Segurança API' },
   { id: 'billing', icon: <CreditCard size={16} />, label: 'Faturamento' },
@@ -77,6 +79,7 @@ function SettingsView() {
   const { toggleSidebar } = useMenuToggle();
   const { success, error: toastError } = useToast();
   const { data: agents, loading, error: agentsError, refetch } = useAgents();
+  const { accounts: authAccounts, selectedAccount, selectAccount: authSelectAccount } = useAuth();
   const currentAgent = agents?.[0];
 
   const [activeSection, setActiveSection] = useState<Section>('profile');
@@ -380,6 +383,7 @@ function SettingsView() {
               { label: 'Armazenamento', used: usage.storage.used, limit: usage.storage.limit, icon: <Globe size={14} />, color: 'bg-amber-500', unit: usage.storage.unit },
             ] as const).map(item => {
               const pct = Math.min(100, Math.round((item.used / item.limit) * 100));
+              const unit = 'unit' in item ? item.unit : '';
               return (
                 <div key={item.label}>
                   <div className="flex items-center justify-between mb-2">
@@ -388,7 +392,7 @@ function SettingsView() {
                       <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.label}</span>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                      {item.used}{item.unit ? ` ${item.unit}` : ''} / {item.limit}{item.unit ? ` ${item.unit}` : ''}
+                      {item.used}{unit ? ` ${unit}` : ''} / {item.limit}{unit ? ` ${unit}` : ''}
                     </span>
                   </div>
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -403,8 +407,68 @@ function SettingsView() {
     );
   };
 
+  const renderAccount = () => {
+    const activeAccounts = authAccounts.filter(a => a.status === 'Active');
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8">
+          <div className="flex items-center gap-4 mb-8 pb-4 border-b border-slate-50 dark:border-slate-800">
+            <Globe size={20} className="text-brand-500" />
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-1">Conta Chatwoot</h3>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Selecione a empresa que deseja acessar</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {activeAccounts.map(account => {
+              const isActive = selectedAccount?.id === account.id;
+              return (
+                <button
+                  key={account.id}
+                  onClick={() => { if (!isActive) { authSelectAccount(account); window.location.reload(); } }}
+                  disabled={isActive}
+                  className={`w-full flex items-center gap-4 p-5 rounded-2xl border transition-all text-left ${
+                    isActive
+                      ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-200 dark:border-brand-800 cursor-default'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-brand-500/30 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 cursor-pointer'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    isActive ? 'bg-brand-500 text-slate-950' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                  }`}>
+                    <Building2 size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{account.name}</p>
+                    <p className="text-[11px] text-slate-500 font-semibold">ID: {account.id}</p>
+                  </div>
+                  {isActive ? (
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-500/20 shrink-0">
+                      Ativa
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-brand-500 shrink-0">Trocar</span>
+                  )}
+                </button>
+              );
+            })}
+
+            {activeAccounts.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4 font-semibold">Nenhuma conta ativa disponível</p>
+            )}
+          </div>
+
+          <p className="text-[10px] text-slate-400 font-medium mt-4 text-center">A página será recarregada ao trocar de conta.</p>
+        </div>
+      </div>
+    );
+  };
+
   const sectionContent: Record<Section, React.ReactNode> = {
     profile: renderProfile(),
+    account: renderAccount(),
     notifications: renderNotifications(),
     security: renderSecurity(),
     billing: renderBilling(),
